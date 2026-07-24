@@ -1,0 +1,101 @@
+name: Temporary QField orthophoto build
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Install GDAL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin python3-gdal
+
+      - name: Build clipped orthophoto
+        env:
+          AREA_WKT: >-
+            POLYGON ((515792.44657394296 1065511.3458931092, 515843.11224806897 1065577.58309672, 515897.9682520248 1065640.3392892485, 515956.779679948 1065699.3457565864, 516019.2946929817 1065754.3498416012, 516085.24559767195 1065805.116025744, 516154.3499921899 1065851.4269372832, 516226.3119754234 1065893.0842818297, 516300.8234138499 1065929.9096911908, 516377.5652606733 1065961.7454869142, 516456.2089216504 1065988.4553552563, 516536.4176617406 1066009.9249306933, 516617.8480465383 1066026.062285473, 516700.1514123915 1066036.7983231272, 516782.97535883257 1066042.0870742411, 516865.9652570277 1066041.9058932385, 516948.7657677172 1066036.2555553224, 517031.0223622286 1066025.1602531662, 517112.38283998746 1066008.6674933708, 517192.4988361204 1065986.8478931175, 517271.02731262526 1065959.794877905, 517347.6320267821 1065927.6242816476, 517421.9849705159 1065890.4738508489, 517493.76777454413 1065848.502654971, 517562.67307132 1065801.8904055248, 517628.4058109254 1065750.8366867828, 517690.68452429364 1065695.560101413, 517749.2425283648 1065636.2973346845, 517803.82906798535 1065573.3021412443, 517854.2103897057 1065506.8442588057, 517900.1707428353 1065437.2082533843, 517941.51330349286 1065364.692301035, 517978.0610177059 1065289.6069112867, 518009.65735987463 1065212.2735977503, 518036.1670034614 1065133.0235015796, 518057.4764008955 1065052.1959736778, 518073.49427033076 1064970.1371217193, 518084.15198705276 1064887.1983282014, 518089.40387793246 1064803.7347458773, 518089.2274175901 1064720.1037770004, 518083.62332548725 1064636.6635429016, 518072.6155634551 1064553.7713504457, 518056.25123369176 1064471.7821619355, 518034.6003776705 1064391.0470750234, 518007.75567676773 1064311.911819122, 517975.8320559206 1064234.7152747887, 517938.96619197534 1064159.7880223815, 517897.315928851 1064087.4509262517, 517851.05960198335 1064018.0137605034, 517800.39527497033 1063951.7738822275, 517745.5398916511 1063889.0149578922, 517686.728347262 1063830.005748344, 517624.21248265146 1063774.9989576382, 517558.26000585116 1063724.230150617, 517489.1533455811 1063677.9167438925, 517417.188441728 1063636.2570745456, 517342.6734777846 1063599.429550546, 517265.92756086675 1063567.5918865295, 517187.27935486234 1063540.8804282057, 517107.06567257753 1063519.4095683051, 517025.63003297744 1063503.2712565553, 516943.3211896281 1063492.5346058006, 516860.4916367187 1063487.245595945, 516777.4960990085 1063487.4268769918, 516694.6900122537 1063493.077672026, 516612.4280005335 1063504.1737805533, 516531.06235711346 1063520.6676821755, 516450.9415352502 1063542.4887401743, 516372.4086555197 1063569.5435041082, 516295.8000359766 1063601.7161101424, 516221.4437515249 1063638.8687773854, 516149.6582286023 1063680.842398108, 516080.75088127796 1063727.45721931, 516015.0167945579 1063778.5136127167, 515952.7374605543 1063833.7929298945, 515894.1795729502 1063893.058438833, 515839.59388490353 1063956.0563379645, 515789.2141352943 1064022.5168432808, 515743.2560479153 1064092.1553438886, 515701.9164078758 1064164.6736210394, 515665.3722191825 1064239.7611254256, 515633.77994710545 1064317.0963072563, 515607.2748485488 1064396.347993408, 515585.9703933094 1064477.1768057735, 515569.95777867676 1064559.2366147023, 515559.3055394483 1064642.1760213207, 515554.0592550399 1064725.639862387, 515554.24135489616 1064809.27073122, 515559.8510230631 1064892.7105082003, 515570.86420230573 1064975.6018942853, 515587.23369773035 1065057.589940968, 515608.889379482 1065138.3235701355, 515635.7384836105 1065217.457077314, 515667.66600984253 1065294.6516118716, 515704.53521450836 1065369.5766278335, 515746.1881965283 1065441.9112991178, 515792.44657394296 1065511.3458931092))
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import urllib.request
+          import xml.etree.ElementTree as ET
+          from osgeo import ogr, osr
+
+          capabilities_url = 'https://geos1.snitcr.go.cr/Ortofoto1k/wmts?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0'
+          raw = urllib.request.urlopen(capabilities_url, timeout=120).read()
+          root = ET.fromstring(raw)
+          ns = {
+              'wmts': 'http://www.opengis.net/wmts/1.0',
+              'ows': 'http://www.opengis.net/ows/1.1',
+          }
+
+          layer_id = 'ortofoto2017_1000'
+          layer = None
+          for candidate in root.findall('.//wmts:Contents/wmts:Layer', ns):
+              ident = candidate.find('ows:Identifier', ns)
+              if ident is not None and ident.text == layer_id:
+                  layer = candidate
+                  break
+          if layer is None:
+              available = [e.text for e in root.findall('.//wmts:Contents/wmts:Layer/ows:Identifier', ns)]
+              raise RuntimeError(f'Layer {layer_id!r} not found. Available: {available}')
+
+          linked = [e.text for e in layer.findall('wmts:TileMatrixSetLink/wmts:TileMatrixSet', ns)]
+          matrix_sets = {}
+          for tms in root.findall('.//wmts:Contents/wmts:TileMatrixSet', ns):
+              ident = tms.find('ows:Identifier', ns)
+              crs = tms.find('ows:SupportedCRS', ns)
+              if ident is not None:
+                  matrix_sets[ident.text] = '' if crs is None else (crs.text or '')
+          chosen = next((x for x in linked if '5367' in matrix_sets.get(x, '')), None)
+          if chosen is None:
+              chosen = next((x for x in linked if '3857' in matrix_sets.get(x, '')), None)
+          if chosen is None and linked:
+              chosen = linked[0]
+          if chosen is None:
+              raise RuntimeError('No TileMatrixSet linked to the orthophoto layer')
+
+          print('Selected TileMatrixSet:', chosen, matrix_sets.get(chosen, ''))
+          with open('wmts.xml', 'w', encoding='utf-8') as f:
+              f.write(f'''<GDAL_WMTS>\n  <GetCapabilitiesUrl>{capabilities_url.replace('&', '&amp;')}</GetCapabilitiesUrl>\n  <Layer>{layer_id}</Layer>\n  <TileMatrixSet>{chosen}</TileMatrixSet>\n  <Cache><Path>${{HOME}}/.cache/gdal_wmts</Path></Cache>\n</GDAL_WMTS>\n''')
+
+          driver = ogr.GetDriverByName('GPKG')
+          ds = driver.CreateDataSource('area_cutline.gpkg')
+          srs = osr.SpatialReference()
+          srs.ImportFromEPSG(5367)
+          lyr = ds.CreateLayer('area', srs, ogr.wkbPolygon)
+          feat = ogr.Feature(lyr.GetLayerDefn())
+          geom = ogr.CreateGeometryFromWkt(os.environ['AREA_WKT'])
+          feat.SetGeometry(geom)
+          lyr.CreateFeature(feat)
+          feat = None
+          ds = None
+          PY
+
+          gdalinfo wmts.xml
+          gdalwarp -overwrite -te 515554.05925504 1063487.24559595 518089.40387793 1066042.08707424 -te_srs EPSG:5367 -t_srs EPSG:5367 -tr 0.5 0.5 -r bilinear -multi -wo NUM_THREADS=ALL_CPUS -co TILED=YES -co COMPRESS=DEFLATE -co BIGTIFF=IF_SAFER wmts.xml ortho_bbox.tif
+          gdalwarp -overwrite -cutline area_cutline.gpkg -crop_to_cutline -dstnodata 0 -multi -wo NUM_THREADS=ALL_CPUS -co TILED=YES -co COMPRESS=DEFLATE -co BIGTIFF=IF_SAFER ortho_bbox.tif ortho_clip_tmp.tif
+          gdal_translate ortho_clip_tmp.tif ortofoto_snit_2015_2018_area_qfield.tif -of COG -a_nodata 0 -co COMPRESS=JPEG -co QUALITY=90 -co BIGTIFF=IF_SAFER -co NUM_THREADS=ALL_CPUS
+          gdalinfo -stats ortofoto_snit_2015_2018_area_qfield.tif > raster_info.txt
+          sha256sum ortofoto_snit_2015_2018_area_qfield.tif > SHA256SUMS.txt
+          ls -lh ortofoto_snit_2015_2018_area_qfield.tif
+
+      - name: Upload raster artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qfield-orthophoto
+          path: |
+            ortofoto_snit_2015_2018_area_qfield.tif
+            raster_info.txt
+            SHA256SUMS.txt
+          retention-days: 1
+          compression-level: 0
