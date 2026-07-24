@@ -20,6 +20,7 @@ jobs:
       - name: Build orthophoto
         run: |
           set -o pipefail
+          sed -i "s/'top_left_x': top_left\[0\], 'top_left_y': top_left\[1\]/'top_left_x': top_left[1], 'top_left_y': top_left[0]/" .github/scripts/build_qfield_ortho_v2.py
           /usr/bin/python3 .github/scripts/build_qfield_ortho_v2.py 2>&1 | tee build.log
       - name: Upload raster artifact
         if: always()
