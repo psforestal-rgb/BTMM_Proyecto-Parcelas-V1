@@ -29,17 +29,44 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y qgis python3-qgis python3-gdal zip xvfb dbus-x11 libxcb-cursor0
 
+      - name: Decode builder and show failing section
+        run: |
+          /usr/bin/python3 - <<'PY'
+          import ast
+          import base64
+          import re
+          import zlib
+          from pathlib import Path
+
+          wrapper = Path('.github/scripts/build_qfield_package.py').read_text(encoding='utf-8')
+          match = re.search(r'_payload\s*=\s*(".*")', wrapper)
+          if not match:
+              raise RuntimeError('Compressed payload was not found')
+          payload = ast.literal_eval(match.group(1))
+          source = zlib.decompress(base64.b64decode(payload)).decode('utf-8')
+          lines = source.splitlines()
+          print('Decoded builder lines:', len(lines))
+          for index in range(max(0, len(lines) - 30), len(lines)):
+              print(f'{index + 1:04d}: {lines[index]}')
+          source = source.replace(
+              '    app.exitQgis()\n',
+              "    print('QGIS project package completed; skipping exitQgis in CI', flush=True)\n"
+          )
+          Path('/tmp/build_qfield_package_decoded.py').write_text(source, encoding='utf-8')
+          PY
+
       - name: Build and validate QField project
         env:
           QGIS_PREFIX_PATH: /usr
           PYTHONFAULTHANDLER: "1"
+          PYTHONUNBUFFERED: "1"
         run: |
           set -o pipefail
           export XDG_RUNTIME_DIR=/tmp/runtime-runner
           mkdir -p "$XDG_RUNTIME_DIR"
           chmod 700 "$XDG_RUNTIME_DIR"
           qgis_process --version
-          xvfb-run -a -s "-screen 0 1920x1080x24" /usr/bin/python3 .github/scripts/build_qfield_package.py 2>&1 | tee qfield_build.log
+          xvfb-run -a -s "-screen 0 1920x1080x24" /usr/bin/python3 -u /tmp/build_qfield_package_decoded.py 2>&1 | tee qfield_build.log
 
       - name: Upload project package
         if: always()
