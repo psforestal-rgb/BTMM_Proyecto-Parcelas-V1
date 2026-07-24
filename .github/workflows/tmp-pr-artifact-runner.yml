@@ -14,8 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build orthophoto
-        run: bash .github/scripts/build_qfield_ortho.sh
+        run: |
+          sed -i 's#^python3 - #/usr/bin/python3 - #' .github/scripts/build_qfield_ortho.sh
+          bash .github/scripts/build_qfield_ortho.sh 2>&1 | tee build.log
       - name: Upload raster artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: qfield-orthophoto
@@ -23,5 +26,7 @@ jobs:
             ortofoto_snit_2015_2018_area_qfield.tif
             raster_info.txt
             SHA256SUMS.txt
+            build.log
+          if-no-files-found: warn
           retention-days: 1
           compression-level: 0
