@@ -1,0 +1,50 @@
+name: Temporary QField package builder
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download official orthophoto artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qfield-orthophoto-5k
+          path: input-raster
+          github-token: ${{ github.token }}
+          repository: psforestal-rgb/BTMM_Proyecto-Parcelas-V1
+          run-id: 30060166121
+
+      - name: Install QGIS and spatial libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qgis python3-qgis python3-gdal zip
+
+      - name: Build and validate QField project
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QGIS_PREFIX_PATH: /usr
+        run: |
+          set -o pipefail
+          /usr/bin/python3 .github/scripts/build_qfield_package.py 2>&1 | tee qfield_build.log
+
+      - name: Upload project package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Proyecto-QField-El-Jilguero-WhatsApp
+          path: |
+            Proyecto_QField_El_Jilguero_WhatsApp.zip
+            qfield_build.log
+          if-no-files-found: warn
+          retention-days: 1
+          compression-level: 0
