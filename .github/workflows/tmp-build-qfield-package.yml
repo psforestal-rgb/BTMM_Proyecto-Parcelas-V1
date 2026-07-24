@@ -64,17 +64,21 @@ jobs:
           qgis_process --version
           xvfb-run -a -s "-screen 0 1920x1080x24" /usr/bin/python3 -u /tmp/build_qfield_package_decoded.py 2>&1 | tee qfield_build.log
 
-          PACKAGE_PATH="$(find "$PWD" -type f -name 'Proyecto_QField_El_Jilguero_WhatsApp.zip' -print -quit)"
+          echo 'Generated files:'
+          find "$PWD" -maxdepth 5 -type f -printf '%s %p\n' | sort -nr | head -80
+
+          PACKAGE_PATH="$(find "$PWD" -type f -name '*.zip' -printf '%s %p\n' | sort -nr | head -1 | cut -d' ' -f2-)"
           if [ -z "$PACKAGE_PATH" ]; then
-            echo 'The final QField ZIP was not found.' >&2
-            find "$PWD" -maxdepth 4 -type f -printf '%p %s bytes\n'
+            echo 'No generated ZIP was found.' >&2
             exit 1
           fi
-          if [ "$(realpath "$PACKAGE_PATH")" != "$(realpath -m "$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip")" ]; then
-            cp "$PACKAGE_PATH" "$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip"
-          fi
+          echo "Selected package: $PACKAGE_PATH"
+          cp "$PACKAGE_PATH" "$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip"
           unzip -t "$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip"
-          unzip -l "$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip"
+          unzip -l "$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip" | tee package_contents.txt
+          unzip -l "$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip" | grep -Ei '\.(qgz|qgs)$'
+          unzip -l "$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip" | grep -Ei '\.gpkg$'
+          unzip -l "$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip" | grep -Ei '\.(tif|tiff)$'
           ls -lh "$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip"
 
       - name: Upload project package
@@ -85,6 +89,7 @@ jobs:
           path: |
             Proyecto_QField_El_Jilguero_WhatsApp.zip
             qfield_build.log
+            package_contents.txt
           if-no-files-found: warn
           retention-days: 1
           compression-level: 0
