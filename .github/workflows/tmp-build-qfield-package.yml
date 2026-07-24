@@ -27,15 +27,19 @@ jobs:
       - name: Install QGIS and spatial libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y qgis python3-qgis python3-gdal zip
+          sudo apt-get install -y qgis python3-qgis python3-gdal zip xvfb dbus-x11 libxcb-cursor0
 
       - name: Build and validate QField project
         env:
-          QT_QPA_PLATFORM: offscreen
           QGIS_PREFIX_PATH: /usr
+          PYTHONFAULTHANDLER: "1"
         run: |
           set -o pipefail
-          /usr/bin/python3 .github/scripts/build_qfield_package.py 2>&1 | tee qfield_build.log
+          export XDG_RUNTIME_DIR=/tmp/runtime-runner
+          mkdir -p "$XDG_RUNTIME_DIR"
+          chmod 700 "$XDG_RUNTIME_DIR"
+          qgis_process --version
+          xvfb-run -a -s "-screen 0 1920x1080x24" /usr/bin/python3 .github/scripts/build_qfield_package.py 2>&1 | tee qfield_build.log
 
       - name: Upload project package
         if: always()
