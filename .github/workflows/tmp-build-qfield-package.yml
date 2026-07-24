@@ -46,7 +46,11 @@ jobs:
           source = zlib.decompress(base64.b64decode(payload)).decode('utf-8')
           source = source.replace(
               '    app.exitQgis()\n',
-              "    print('QGIS project package completed; terminating before unstable CI teardown', flush=True)\n    __import__('os')._exit(0)\n"
+              "    print('Project validated; postponing QGIS teardown until after ZIP creation', flush=True)\n"
+          )
+          source = source.replace(
+              '    build_zip()\n',
+              "    build_zip()\n    print('Final QField ZIP created; terminating before unstable CI teardown', flush=True)\n    __import__('os')._exit(0)\n"
           )
           Path('/tmp/build_qfield_package_decoded.py').write_text(source, encoding='utf-8')
           PY
@@ -64,22 +68,14 @@ jobs:
           qgis_process --version
           xvfb-run -a -s "-screen 0 1920x1080x24" /usr/bin/python3 -u /tmp/build_qfield_package_decoded.py 2>&1 | tee qfield_build.log
 
-          echo 'Generated files:'
-          find "$PWD" -maxdepth 5 -type f -printf '%s %p\n' | sort -nr | head -80
-
-          PACKAGE_PATH="$(find "$PWD" -type f -name '*.zip' -printf '%s %p\n' | sort -nr | head -1 | cut -d' ' -f2-)"
-          if [ -z "$PACKAGE_PATH" ]; then
-            echo 'No generated ZIP was found.' >&2
-            exit 1
-          fi
-          echo "Selected package: $PACKAGE_PATH"
-          cp "$PACKAGE_PATH" "$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip"
-          unzip -t "$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip"
-          unzip -l "$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip" | tee package_contents.txt
-          unzip -l "$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip" | grep -Ei '\.(qgz|qgs)$'
-          unzip -l "$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip" | grep -Ei '\.gpkg$'
-          unzip -l "$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip" | grep -Ei '\.(tif|tiff)$'
-          ls -lh "$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip"
+          PACKAGE_PATH="$PWD/Proyecto_QField_El_Jilguero_WhatsApp.zip"
+          test -f "$PACKAGE_PATH"
+          unzip -t "$PACKAGE_PATH"
+          unzip -l "$PACKAGE_PATH" | tee package_contents.txt
+          unzip -l "$PACKAGE_PATH" | grep -Ei '\.(qgz|qgs)$'
+          unzip -l "$PACKAGE_PATH" | grep -Ei '\.gpkg$'
+          unzip -l "$PACKAGE_PATH" | grep -Ei '\.(tif|tiff)$'
+          ls -lh "$PACKAGE_PATH"
 
       - name: Upload project package
         if: always()
