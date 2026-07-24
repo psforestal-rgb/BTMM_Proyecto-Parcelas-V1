@@ -1,0 +1,27 @@
+name: Temporary PR artifact runner
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build orthophoto
+        run: bash .github/scripts/build_qfield_ortho.sh
+      - name: Upload raster artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qfield-orthophoto
+          path: |
+            ortofoto_snit_2015_2018_area_qfield.tif
+            raster_info.txt
+            SHA256SUMS.txt
+          retention-days: 1
+          compression-level: 0
